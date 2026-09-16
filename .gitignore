@@ -9,6 +9,9 @@
 # Locally-stored uploads (resumes, PII — never commit)
 /uploads
 
+# Generated exports (PDF/DOCX files, PII — never commit)
+/exports
+
 # Logs
 logs
 *.log

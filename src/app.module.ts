@@ -19,9 +19,11 @@ import { UsersModule } from './modules/users/users.module.js';
 import { TemplatesModule } from './modules/templates/templates.module.js';
 import { CvsModule } from './modules/cvs/cvs.module.js';
 import { GeminiModule } from './common/gemini/gemini.module.js';
+import { PdfModule } from './common/pdf/pdf.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { AiSuggestionsModule } from './modules/ai-suggestions/ai-suggestions.module.js';
 import { JobDescriptionsModule } from './modules/job-descriptions/job-descriptions.module.js';
+import { ExportsModule } from './modules/exports/exports.module.js';
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { JobDescriptionsModule } from './modules/job-descriptions/job-descriptio
     RedisModule,
     MailModule,
     GeminiModule,
+    PdfModule,
     AuthModule,
     UsersModule,
     TemplatesModule,
@@ -48,6 +51,7 @@ import { JobDescriptionsModule } from './modules/job-descriptions/job-descriptio
     UploadsModule,
     AiSuggestionsModule,
     JobDescriptionsModule,
+    ExportsModule,
   ],
   controllers: [AppController],
   providers: [
