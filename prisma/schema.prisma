@@ -163,14 +163,16 @@ model CvEntry {
 // ---------------------------------------------------------------------------
 
 model AiSuggestion {
-  id        String     @id @default(cuid())
-  cvId      String
-  cv        Cv         @relation(fields: [cvId], references: [id], onDelete: Cascade)
-  sectionId String?
-  section   CvSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  entryId   String?
-  entry     CvEntry?   @relation(fields: [entryId], references: [id], onDelete: SetNull)
-  fieldKey  String? // which key within entry.fieldsJson this suggestion targets, e.g. "description"
+  id             String          @id @default(cuid())
+  cvId           String
+  cv             Cv              @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  sectionId      String?
+  section        CvSection?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  entryId        String?
+  entry          CvEntry?        @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  fieldKey       String? // which key within entry.fieldsJson this suggestion targets, e.g. "description"
+  jobDescriptionId String?
+  jobDescription JobDescription? @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
 
   label         String? // short display reason, e.g. "Stronger action verbs"
   originalText  String
@@ -182,6 +184,7 @@ model AiSuggestion {
 
   @@index([cvId])
   @@index([entryId])
+  @@index([jobDescriptionId])
   @@map("ai_suggestions")
 }
 
@@ -205,8 +208,10 @@ model JobDescription {
   rawText           String
   sourceType        JdSourceType
   matchScore        Int? // 0-100
-  extractedKeywords Json? // { matched: string[], missing: string[] }
+  extractedKeywords Json? // { matched: string[], missing: string[], summary: string }
   createdAt         DateTime     @default(now())
+
+  aiSuggestions AiSuggestion[]
 
   @@index([cvId])
   @@map("job_descriptions")

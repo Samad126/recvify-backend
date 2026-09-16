@@ -14,6 +14,9 @@ export class AiSuggestionEntity {
   @ApiPropertyOptional({ example: 'description' })
   fieldKey: string | null;
 
+  @ApiPropertyOptional({ description: 'Set when this suggestion came from a JD-tailoring analysis' })
+  jobDescriptionId: string | null;
+
   @ApiPropertyOptional({ example: 'Stronger action verbs' })
   label: string | null;
 

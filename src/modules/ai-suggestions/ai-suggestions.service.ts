@@ -2,17 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { DatabaseService } from '../../common/database/database.service.js';
 import { GeminiService } from '../../common/gemini/gemini.service.js';
 import { CvsService } from '../cvs/cvs.service.js';
-import type { Prisma, SectionType } from '../../generated/prisma/client.js';
+import { collectImprovableTargets, IMPROVABLE_SECTION_TYPES } from '../../common/cv/cv-targets.util.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { GenerateSuggestionsDto } from './dto/generate-suggestions.dto.js';
 import { UpdateSuggestionDto } from './dto/update-suggestion.dto.js';
 import { ApplySuggestionsDto } from './dto/apply-suggestions.dto.js';
-
-/** Only these section types carry free text worth rewriting. */
-const IMPROVABLE_SECTION_TYPES: SectionType[] = ['SUMMARY', 'EXPERIENCE', 'CUSTOM'];
-
-function fieldKeyFor(sectionType: SectionType): string {
-  return sectionType === 'EXPERIENCE' ? 'description' : 'text';
-}
 
 @Injectable()
 export class AiSuggestionsService {
@@ -37,22 +31,7 @@ export class AiSuggestionsService {
     const sectionTypes =
       dto.scope === 'WHOLE_CV' ? IMPROVABLE_SECTION_TYPES : [dto.scope];
 
-    const sections = await this.db.cvSection.findMany({
-      where: { cvId, sectionType: { in: sectionTypes } },
-      include: { entries: true },
-    });
-
-    const targets: { entryId: string; sectionId: string; fieldKey: string; text: string }[] = [];
-    for (const section of sections) {
-      const fieldKey = fieldKeyFor(section.sectionType);
-      for (const entry of section.entries) {
-        const fields = entry.fieldsJson as Record<string, unknown>;
-        const text = fields[fieldKey];
-        if (typeof text === 'string' && text.trim().length > 0) {
-          targets.push({ entryId: entry.id, sectionId: section.id, fieldKey, text });
-        }
-      }
-    }
+    const targets = await collectImprovableTargets(this.db, cvId, sectionTypes);
 
     if (targets.length === 0) return [];
 

@@ -12,6 +12,12 @@ import {
   type SuggestionInput,
   type SuggestionResult,
 } from './suggestion-schema.js';
+import {
+  buildJdMatchPrompt,
+  JD_MATCH_SCHEMA,
+  type JdMatchResult,
+  type JdMatchTarget,
+} from './jd-match-schema.js';
 
 const MODEL = 'gemini-3.6-flash';
 
@@ -77,6 +83,34 @@ export class GeminiService {
     } catch (err) {
       this.logger.error(`Suggestion generation failed: ${(err as Error).message}`);
       throw new InternalServerErrorException('Failed to generate suggestions');
+    }
+  }
+
+  /** Scores a CV's fit against a job description and suggests targeted rewrites for weak text blocks. */
+  async analyzeJobMatch(
+    jobDescriptionText: string,
+    skills: string[],
+    targets: JdMatchTarget[],
+  ): Promise<JdMatchResult> {
+    try {
+      const response = await this.client.models.generateContent({
+        model: MODEL,
+        contents: [
+          { role: 'user', parts: [{ text: buildJdMatchPrompt(jobDescriptionText, skills, targets) }] },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: JD_MATCH_SCHEMA,
+        },
+      });
+
+      const raw = response.text;
+      if (!raw) throw new Error('Gemini returned an empty response');
+
+      return JSON.parse(raw) as JdMatchResult;
+    } catch (err) {
+      this.logger.error(`JD match analysis failed: ${(err as Error).message}`);
+      throw new InternalServerErrorException('Failed to analyze job match');
     }
   }
 }
