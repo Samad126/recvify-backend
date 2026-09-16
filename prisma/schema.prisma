@@ -6,3 +6,243 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ---------------------------------------------------------------------------
+// USERS
+// ---------------------------------------------------------------------------
+
+model User {
+  id                 String   @id @default(uuid())
+  firstName          String
+  lastName           String
+  email              String   @unique
+  hashedPassword     String? // null for OAuth-only users (e.g. Google)
+  hashedRefreshToken String?
+  googleId           String?  @unique
+  avatarUrl          String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  plan               Plan     @default(FREE)
+  cvs                Cv[]
+  uploads            Upload[]
+
+  @@map("users")
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+// ---------------------------------------------------------------------------
+// TEMPLATES
+// ---------------------------------------------------------------------------
+
+model Template {
+  id            String   @id @default(uuid())
+  name          String
+  tagline       String? // e.g. "Classic • Professional", shown on gallery/dashboard cards
+  thumbnailUrl  String
+  industries    String[] @default([]) // e.g. ["technology", "finance", "creative"]
+  styles        String[] @default([]) // e.g. ["modern", "classic", "minimal"]
+  structureJson Json // layout + section config, see example below
+  isAtsFriendly Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  cvs Cv[]
+
+  @@map("templates")
+}
+
+// Example structureJson shape (not enforced by Prisma, just documentation):
+// {
+//   "layout": "single-column",
+//   "sections": [
+//     { "type": "contact", "required": true, "position": "header" },
+//     { "type": "summary", "required": false, "position": 1 },
+//     { "type": "experience", "required": true, "position": 2 },
+//     { "type": "education", "required": true, "position": 3 },
+//     { "type": "skills", "required": false, "position": 4 }
+//   ],
+//   "font": "Inter",
+//   "accentColor": "#0F766E"
+// }
+
+// ---------------------------------------------------------------------------
+// CVs
+// ---------------------------------------------------------------------------
+
+model Cv {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId String
+  template   Template @relation(fields: [templateId], references: [id])
+
+  title              String
+  status             CvStatus @default(DRAFT)
+  isVariant          Boolean  @default(false)
+  styleOverridesJson Json? // per-CV font family/size, accent color, light/dark mode
+
+  // Self-relation: a tailored variant points back to its base CV
+  parentCvId String?
+  parentCv   Cv?     @relation("CvVariants", fields: [parentCvId], references: [id], onDelete: SetNull)
+  variants   Cv[]    @relation("CvVariants")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections        CvSection[]
+  aiSuggestions   AiSuggestion[]
+  jobDescriptions JobDescription[]
+  exports         Export[]
+
+  @@index([userId])
+  @@index([parentCvId])
+  @@map("cvs")
+}
+
+enum CvStatus {
+  DRAFT
+  COMPLETE
+}
+
+model CvSection {
+  id          String      @id @default(cuid())
+  cvId        String
+  cv          Cv          @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  sectionType SectionType
+  title       String? // overrides the default header, required for CUSTOM sections
+  sortOrder   Int
+
+  entries       CvEntry[]
+  aiSuggestions AiSuggestion[]
+
+  @@index([cvId])
+  @@map("cv_sections")
+}
+
+enum SectionType {
+  SUMMARY
+  EXPERIENCE
+  EDUCATION
+  SKILLS
+  CERTIFICATIONS
+  CUSTOM
+}
+
+model CvEntry {
+  id         String    @id @default(cuid())
+  sectionId  String
+  section    CvSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  fieldsJson Json // flexible shape per section type, see examples below
+  sortOrder  Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([sectionId])
+  @@map("cv_entries")
+}
+
+// Example fieldsJson per section type:
+// Experience: { "title": "Software Engineer", "company": "Acme", "startDate": "2022-01",
+//               "endDate": null, "current": true, "bullets": ["Built X", "Shipped Y"] }
+// Education:  { "school": "MIT", "degree": "BSc Computer Science", "startDate": "2016-09", "endDate": "2020-06" }
+// Skills:     { "name": "TypeScript", "level": "Advanced" }
+
+// ---------------------------------------------------------------------------
+// AI FEATURES
+// ---------------------------------------------------------------------------
+
+model AiSuggestion {
+  id        String     @id @default(cuid())
+  cvId      String
+  cv        Cv         @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  sectionId String?
+  section   CvSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  originalText  String
+  suggestedText String
+  status        SuggestionStatus @default(PENDING)
+  source        SuggestionSource
+
+  createdAt DateTime @default(now())
+
+  @@index([cvId])
+  @@map("ai_suggestions")
+}
+
+enum SuggestionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EDITED
+}
+
+enum SuggestionSource {
+  IMPROVE
+  JD_TAILOR
+}
+
+model JobDescription {
+  id   String @id @default(cuid())
+  cvId String
+  cv   Cv     @relation(fields: [cvId], references: [id], onDelete: Cascade)
+
+  rawText           String
+  sourceType        JdSourceType
+  matchScore        Int? // 0-100
+  extractedKeywords Json? // { matched: string[], missing: string[] }
+  createdAt         DateTime     @default(now())
+
+  @@index([cvId])
+  @@map("job_descriptions")
+}
+
+enum JdSourceType {
+  PASTE
+  FILE
+  URL
+}
+
+// ---------------------------------------------------------------------------
+// EXPORTS & UPLOADS
+// ---------------------------------------------------------------------------
+
+model Export {
+  id        String       @id @default(cuid())
+  cvId      String
+  cv        Cv           @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  format    ExportFormat
+  fileUrl   String?
+  shareSlug String?      @unique
+  createdAt DateTime     @default(now())
+
+  @@index([cvId])
+  @@map("exports")
+}
+
+enum ExportFormat {
+  PDF
+  DOCX
+  LINK
+}
+
+model Upload {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileUrl      String
+  parsedStatus ParseStatus @default(PENDING)
+  parsedData   Json?
+  createdAt    DateTime    @default(now())
+
+  @@index([userId])
+  @@map("uploads")
+}
+
+enum ParseStatus {
+  PENDING
+  PARSED
+  FAILED
+}
