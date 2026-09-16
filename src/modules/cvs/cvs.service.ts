@@ -68,6 +68,7 @@ export class CvsService {
     return this.db.cv.findUnique({
       where: { id: cvId },
       include: {
+        template: true,
         sections: {
           orderBy: { sortOrder: 'asc' },
           include: { entries: { orderBy: { sortOrder: 'asc' } } },
@@ -186,6 +187,7 @@ export class CvsService {
       return tx.cv.findUniqueOrThrow({
         where: { id: cv.id },
         include: {
+          template: true,
           sections: {
             orderBy: { sortOrder: 'asc' },
             include: { entries: { orderBy: { sortOrder: 'asc' } } },

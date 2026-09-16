@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { instanceToPlain } from 'class-transformer';
 import { DatabaseService } from '../../common/database/database.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { CvSectionsService } from './cv-sections.service.js';
@@ -64,17 +65,21 @@ export class CvEntriesService {
   ) {
     const section = await this.sectionsService.getOwnedSectionOrThrow(cvId, sectionId, userId);
     const entry = await this.getOwnedEntryOrThrow(cvId, sectionId, entryId, userId);
-    const patch = await validatePartialEntryFields(section.sectionType, dto.fieldsJson);
-    const merged = {
-      ...(entry.fieldsJson as Record<string, unknown>),
-      ...patch,
-    };
+
+    const data: Prisma.CvEntryUpdateInput = {};
+    if (dto.fieldsJson !== undefined) {
+      const patch = await validatePartialEntryFields(section.sectionType, dto.fieldsJson);
+      data.fieldsJson = {
+        ...(entry.fieldsJson as Record<string, unknown>),
+        ...patch,
+      } as Prisma.InputJsonValue;
+    }
+    if (dto.styleOverridesJson !== undefined) {
+      data.styleOverridesJson = instanceToPlain(dto.styleOverridesJson) as Prisma.InputJsonValue;
+    }
 
     return this.db.$transaction(async (tx) => {
-      const updated = await tx.cvEntry.update({
-        where: { id: entryId },
-        data: { fieldsJson: merged as Prisma.InputJsonValue },
-      });
+      const updated = await tx.cvEntry.update({ where: { id: entryId }, data });
       await tx.cv.update({ where: { id: cvId }, data: { updatedAt: new Date() } });
       return updated;
     });

@@ -114,12 +114,13 @@ enum CvStatus {
 }
 
 model CvSection {
-  id          String      @id @default(cuid())
-  cvId        String
-  cv          Cv          @relation(fields: [cvId], references: [id], onDelete: Cascade)
-  sectionType SectionType
-  title       String? // overrides the default header, required for CUSTOM sections
-  sortOrder   Int
+  id                 String      @id @default(cuid())
+  cvId               String
+  cv                 Cv          @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  sectionType        SectionType
+  title              String? // overrides the default header, required for CUSTOM sections
+  sortOrder          Int
+  styleOverridesJson Json? // optional per-section font/color override, cascades over the CV-level default
 
   entries       CvEntry[]
   aiSuggestions AiSuggestion[]
@@ -138,13 +139,14 @@ enum SectionType {
 }
 
 model CvEntry {
-  id         String    @id @default(cuid())
-  sectionId  String
-  section    CvSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  fieldsJson Json // flexible shape per section type, see examples below
-  sortOrder  Int       @default(0)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  sectionId          String
+  section            CvSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  fieldsJson         Json // flexible shape per section type, see examples below
+  sortOrder          Int       @default(0)
+  styleOverridesJson Json? // optional per-entry font/color override, cascades over the section/CV-level default
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   aiSuggestions AiSuggestion[]
 

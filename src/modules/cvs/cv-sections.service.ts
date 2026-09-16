@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { instanceToPlain } from 'class-transformer';
 import { DatabaseService } from '../../common/database/database.service.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { CvsService } from './cvs.service.js';
 import { CreateSectionDto } from './dto/create-section.dto.js';
 import { UpdateSectionDto } from './dto/update-section.dto.js';
@@ -48,7 +50,12 @@ export class CvSectionsService {
     return this.db.$transaction(async (tx) => {
       const section = await tx.cvSection.update({
         where: { id: sectionId },
-        data: { title: dto.title },
+        data: {
+          ...(dto.title !== undefined && { title: dto.title }),
+          ...(dto.styleOverridesJson !== undefined && {
+            styleOverridesJson: instanceToPlain(dto.styleOverridesJson) as Prisma.InputJsonValue,
+          }),
+        },
       });
       await tx.cv.update({ where: { id: cvId }, data: { updatedAt: new Date() } });
       return section;

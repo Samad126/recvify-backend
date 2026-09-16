@@ -129,10 +129,12 @@ export class ExportsService {
         sectionType: section.sectionType,
         title: section.title,
         sortOrder: section.sortOrder,
+        styleOverridesJson: section.styleOverridesJson as Record<string, unknown> | null,
         entries: section.entries.map((entry) => ({
           id: entry.id,
           fieldsJson: entry.fieldsJson as Record<string, unknown>,
           sortOrder: entry.sortOrder,
+          styleOverridesJson: entry.styleOverridesJson as Record<string, unknown> | null,
         })),
       })),
     };

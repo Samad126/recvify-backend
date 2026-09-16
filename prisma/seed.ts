@@ -94,6 +94,49 @@ const templates = [
       accentColor: '#0F766E',
     },
   },
+  {
+    id: '55555555-5555-4555-8555-555555555555',
+    name: 'Modern Sidebar',
+    tagline: 'Contemporary • Two-column',
+    thumbnailUrl: '/templates/modern-sidebar.png',
+    industries: ['technology', 'design', 'marketing'],
+    styles: ['modern', 'bold'],
+    isAtsFriendly: false,
+    structureJson: {
+      layout: 'two-column',
+      sections: [
+        { type: 'contact', required: true, position: 'header' },
+        { type: 'summary', required: false, position: 1 },
+        { type: 'experience', required: true, position: 2 },
+        { type: 'skills', required: false, position: 'sidebar' },
+        { type: 'certifications', required: false, position: 'sidebar' },
+        { type: 'education', required: true, position: 'sidebar' },
+      ],
+      font: 'Arial, sans-serif',
+      accentColor: '#7C3AED',
+    },
+  },
+  {
+    id: '66666666-6666-4666-8666-666666666666',
+    name: 'Compact ATS',
+    tagline: 'Dense • ATS-safe',
+    thumbnailUrl: '/templates/compact-ats.png',
+    industries: ['finance', 'operations', 'technology'],
+    styles: ['minimal', 'classic'],
+    isAtsFriendly: true,
+    structureJson: {
+      layout: 'single-column',
+      sections: [
+        { type: 'contact', required: true, position: 'header' },
+        { type: 'experience', required: true, position: 1 },
+        { type: 'skills', required: false, position: 2 },
+        { type: 'education', required: true, position: 3 },
+        { type: 'certifications', required: false, position: 4 },
+      ],
+      font: "'Times New Roman', serif",
+      accentColor: '#1D4ED8',
+    },
+  },
 ];
 
 async function main() {

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CvStatus, SectionType } from '../../../generated/prisma/client.js';
+import { TemplateDetailEntity } from '../../templates/dto/template.entity.js';
 
 export class CvEntryEntity {
   @ApiProperty()
@@ -10,6 +11,12 @@ export class CvEntryEntity {
 
   @ApiProperty()
   sortOrder: number;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description: 'Per-entry font/color override, cascades over the section/CV-level default',
+  })
+  styleOverridesJson: Record<string, unknown> | null;
 }
 
 export class CvSectionEntity {
@@ -24,6 +31,12 @@ export class CvSectionEntity {
 
   @ApiProperty()
   sortOrder: number;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description: 'Per-section font/color override, cascades over the CV-level default',
+  })
+  styleOverridesJson: Record<string, unknown> | null;
 
   @ApiProperty({ type: [CvEntryEntity] })
   entries: CvEntryEntity[];
@@ -61,6 +74,12 @@ export class CvDetailEntity extends CvListItemEntity {
 
   @ApiProperty()
   createdAt: Date;
+
+  @ApiProperty({
+    type: TemplateDetailEntity,
+    description: "The full template (including structureJson) this CV's layout is based on",
+  })
+  template: TemplateDetailEntity;
 
   @ApiProperty({ type: [CvSectionEntity] })
   sections: CvSectionEntity[];
