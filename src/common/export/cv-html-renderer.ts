@@ -52,6 +52,16 @@ function styleAttr(rules: Record<string, string | number | undefined>): string {
 
 type EntryWithStyle = CvEntry & { fieldsJson: unknown };
 
+function weightStyleRules(style: ReturnType<typeof resolveStyle>): Record<string, string | undefined> {
+  return {
+    'font-weight': style.bold === undefined ? undefined : style.bold ? '700' : '400',
+    'font-style': style.italic === undefined ? undefined : style.italic ? 'italic' : 'normal',
+    'text-decoration':
+      style.underline === undefined ? undefined : style.underline ? 'underline' : 'none',
+    'line-height': String(style.lineHeight),
+  };
+}
+
 /** Resolves one field's own style, independent of every other field in the same entry. */
 function fieldStyleAttr(
   layers: (StyleOverrides | null | undefined)[],
@@ -67,6 +77,7 @@ function fieldStyleAttr(
     // Accent fields (company/school) default to the resolved accent; every
     // other field stays neutral unless *this* field was explicitly colored.
     color: useAccent ? style.color : style.explicitColor,
+    ...weightStyleRules(style),
   });
 }
 
@@ -142,16 +153,18 @@ function renderSection(
   const body = section.entries
     .map((entry) => renderEntry(section, entry, sectionLayers))
     .join('\n');
-  const headerColorRule = (section.styleOverridesJson as StyleOverrides | null)?.accentColor
-    ? `color:${style.color};`
-    : '';
   return `<section class="section">
-    <h2 class="section-title" style="font-family:'${style.fontFamily}', Arial, sans-serif;font-size:${14 * style.fontScale}px;${headerColorRule}">${escapeHtml(sectionLabel(section))}</h2>
+    <h2 class="section-title"${styleAttr({
+      'font-family': `'${style.fontFamily}', Arial, sans-serif`,
+      'font-size': `${14 * style.fontScale}px`,
+      color: style.color,
+      ...weightStyleRules(style),
+    })}>${escapeHtml(sectionLabel(section))}</h2>
     <div class="${isSkills ? 'chips' : 'section-body'}">${body}</div>
   </section>`;
 }
 
-export function renderCvHtml(cv: ExportableCv): string {
+export function renderCvHtml(cv: ExportableCv, photoDataUri?: string): string {
   const structure = (cv.template.structureJson ?? {}) as TemplateStructure;
   const cvStyle = (cv.styleOverridesJson ?? {}) as StyleOverrides;
   const contact = (cv.contactInfoJson ?? {}) as ContactInfo;
@@ -175,16 +188,16 @@ export function renderCvHtml(cv: ExportableCv): string {
   // Name/contact-line stay neutral by default (no template-driven tint) —
   // only an *explicit* accent (CV-wide or field-specific) colors them, unlike
   // the title which inherits the template's accent like every other run.
-  const nameColor = cvStyle.fieldOverrides?.fullName?.accentColor ?? cvStyle.accentColor;
-  const contactFieldColor = (field: string) => cvStyle.fieldOverrides?.[field]?.accentColor ?? cvStyle.accentColor;
+  const nameStyle = resolveStyle(cvStyle, cvStyle.fieldOverrides?.fullName);
+  const contactFieldStyle = (field: string) => resolveStyle(cvStyle, cvStyle.fieldOverrides?.[field]);
 
   const contactLine = [
     contact.email &&
-      `<span${styleAttr({ color: contactFieldColor('email') })}>${escapeHtml(contact.email)}</span>`,
+      `<span${styleAttr({ color: contactFieldStyle('email').explicitColor, ...weightStyleRules(contactFieldStyle('email')) })}>${escapeHtml(contact.email)}</span>`,
     contact.phone &&
-      `<span${styleAttr({ color: contactFieldColor('phone') })}>${escapeHtml(contact.phone)}</span>`,
+      `<span${styleAttr({ color: contactFieldStyle('phone').explicitColor, ...weightStyleRules(contactFieldStyle('phone')) })}>${escapeHtml(contact.phone)}</span>`,
     contact.location &&
-      `<span${styleAttr({ color: contactFieldColor('location') })}>${escapeHtml(contact.location)}</span>`,
+      `<span${styleAttr({ color: contactFieldStyle('location').explicitColor, ...weightStyleRules(contactFieldStyle('location')) })}>${escapeHtml(contact.location)}</span>`,
   ]
     .filter(Boolean)
     .join(' &nbsp;|&nbsp; ');
@@ -203,7 +216,9 @@ export function renderCvHtml(cv: ExportableCv): string {
     margin: 0;
     padding: 40px;
   }
-  .header { border-bottom: 2px solid ${t.onSurface}; padding-bottom: 16px; margin-bottom: 24px; }
+  .header { border-bottom: 2px solid ${t.onSurface}; padding-bottom: 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; }
+  .header-text { flex: 1; min-width: 0; }
+  .photo { width: 84px; height: 84px; border-radius: 999px; object-fit: cover; flex-shrink: 0; }
   h1 { font-size: 32px; line-height: 40px; letter-spacing: -0.02em; font-weight: 700; margin: 0; text-transform: uppercase; color: ${t.onSurface}; }
   .header-title { font-size: 18px; line-height: 24px; font-weight: 600; color: ${headerStyle.color}; margin: 4px 0 0; }
   .contact-line { font-size: 13px; color: ${t.onSurfaceVariant}; margin-top: 8px; }
@@ -239,9 +254,12 @@ export function renderCvHtml(cv: ExportableCv): string {
 </head>
 <body>
   <div class="header">
-    <h1${styleAttr({ color: nameColor })}>${escapeHtml(contact.fullName)}</h1>
-    ${contact.title ? `<p class="header-title">${escapeHtml(contact.title)}</p>` : ''}
-    ${contactLine ? `<p class="contact-line">${contactLine}</p>` : ''}
+    ${photoDataUri ? `<img class="photo" src="${photoDataUri}" alt="" />` : ''}
+    <div class="header-text">
+      <h1${styleAttr({ color: nameStyle.explicitColor, ...weightStyleRules(nameStyle) })}>${escapeHtml(contact.fullName)}</h1>
+      ${contact.title ? `<p class="header-title"${styleAttr(weightStyleRules(headerStyle))}>${escapeHtml(contact.title)}</p>` : ''}
+      ${contactLine ? `<p class="contact-line">${contactLine}</p>` : ''}
+    </div>
   </div>
   <div class="layout">
     <div class="main">${mainSections.map((s) => renderSection(s, bodyLayers)).join('\n')}</div>

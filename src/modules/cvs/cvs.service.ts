@@ -1,4 +1,8 @@
+import { randomUUID } from 'node:crypto';
+import { extname, join } from 'node:path';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { instanceToPlain } from 'class-transformer';
 import { DatabaseService } from '../../common/database/database.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -18,7 +22,14 @@ const CV_LIST_SELECT = {
 
 @Injectable()
 export class CvsService {
-  constructor(private readonly db: DatabaseService) {}
+  private readonly photoDir: string;
+
+  constructor(
+    private readonly db: DatabaseService,
+    configService: ConfigService,
+  ) {
+    this.photoDir = configService.get<string>('PHOTO_DIR') ?? './photos';
+  }
 
   /**
    * Every CV/section/entry mutation must go through this — 404 (not 403) on a
@@ -195,5 +206,41 @@ export class CvsService {
         },
       });
     });
+  }
+
+  async uploadPhoto(cvId: string, userId: string, file: Express.Multer.File) {
+    const cv = await this.getOwnedCvOrThrow(cvId, userId);
+
+    await mkdir(this.photoDir, { recursive: true });
+    const storedFilename = `${randomUUID()}${extname(file.originalname)}`;
+    await writeFile(join(this.photoDir, storedFilename), file.buffer);
+    const photoUrl = `/photos/${storedFilename}`;
+
+    if (cv.photoUrl) {
+      await this.deletePhotoFile(cv.photoUrl).catch(() => undefined);
+    }
+
+    return this.db.cv.update({
+      where: { id: cvId },
+      data: { photoUrl },
+      select: { id: true, photoUrl: true },
+    });
+  }
+
+  async removePhoto(cvId: string, userId: string) {
+    const cv = await this.getOwnedCvOrThrow(cvId, userId);
+    if (cv.photoUrl) {
+      await this.deletePhotoFile(cv.photoUrl).catch(() => undefined);
+    }
+    return this.db.cv.update({
+      where: { id: cvId },
+      data: { photoUrl: null },
+      select: { id: true, photoUrl: true },
+    });
+  }
+
+  private async deletePhotoFile(photoUrl: string) {
+    const filename = photoUrl.replace(/^\/photos\//, '');
+    await unlink(join(this.photoDir, filename));
   }
 }

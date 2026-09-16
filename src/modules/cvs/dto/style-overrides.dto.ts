@@ -1,5 +1,16 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class StyleOverridesDto {
   @ApiPropertyOptional({ example: 'Inter' })
@@ -8,11 +19,11 @@ export class StyleOverridesDto {
   @MaxLength(50)
   fontFamily?: string;
 
-  @ApiPropertyOptional({ example: 14, minimum: 8, maximum: 32 })
+  @ApiPropertyOptional({ example: 14, minimum: 6, maximum: 96, description: 'Points/px — half-point values like 10.5 are allowed' })
   @IsOptional()
-  @IsInt()
-  @Min(8)
-  @Max(32)
+  @IsNumber()
+  @Min(6)
+  @Max(96)
   fontSize?: number;
 
   @ApiPropertyOptional({ example: '#0F766E', description: 'Hex color' })
@@ -25,6 +36,28 @@ export class StyleOverridesDto {
   @IsOptional()
   @IsIn(['light', 'dark'])
   theme?: 'light' | 'dark';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  bold?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  italic?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  underline?: boolean;
+
+  @ApiPropertyOptional({ example: 1.4, minimum: 1, maximum: 3, description: 'Line-height multiplier, not px' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(3)
+  lineHeight?: number;
 
   @ApiPropertyOptional({
     type: Object,

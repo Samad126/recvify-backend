@@ -12,6 +12,9 @@ export class PublicCvEntity {
   @ApiPropertyOptional({ type: Object })
   styleOverridesJson: Record<string, unknown> | null;
 
+  @ApiPropertyOptional({ description: 'Servable URL for the optional profile photo' })
+  photoUrl: string | null;
+
   @ApiProperty({ type: TemplateDetailEntity })
   template: TemplateDetailEntity;
 

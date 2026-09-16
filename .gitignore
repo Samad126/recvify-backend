@@ -12,6 +12,9 @@
 # Generated exports (PDF/DOCX files, PII — never commit)
 /exports
 
+# CV profile photos, served statically — PII, never commit
+/photos
+
 # Logs
 logs
 *.log

@@ -84,6 +84,7 @@ model Cv {
   isVariant          Boolean  @default(false)
   styleOverridesJson Json? // per-CV font family/size, accent color, light/dark mode
   contactInfoJson    Json? // { fullName, title, email, phone, location } — per-CV, may differ from the account's own name/email
+  photoUrl           String? // servable URL (/photos/<file>) for an optional profile photo, rendered by photo-capable templates
 
   // Self-relation: a tailored variant points back to its base CV
   parentCvId String?

@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { extname, join } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../common/database/database.service.js';
 import { PdfService } from '../../common/pdf/pdf.service.js';
@@ -24,7 +24,9 @@ const CV_WITH_CONTENT_INCLUDE = {
 
 @Injectable()
 export class ExportsService {
+  private readonly logger = new Logger(ExportsService.name);
   private readonly exportDir: string;
+  private readonly photoDir: string;
 
   constructor(
     private readonly db: DatabaseService,
@@ -33,6 +35,28 @@ export class ExportsService {
     private readonly configService: ConfigService,
   ) {
     this.exportDir = this.configService.get<string>('EXPORT_DIR') ?? './exports';
+    this.photoDir = this.configService.get<string>('PHOTO_DIR') ?? './photos';
+  }
+
+  /**
+   * Puppeteer renders the exported HTML with no network access to the app's
+   * own /photos route, and docx needs raw bytes anyway — so both exports read
+   * the photo straight off disk instead of fetching it by URL.
+   */
+  private async readPhoto(
+    photoUrl: string | null,
+  ): Promise<{ buffer: Buffer; dataUri: string; ext: string } | undefined> {
+    if (!photoUrl) return undefined;
+    try {
+      const filename = photoUrl.replace(/^\/photos\//, '');
+      const buffer = await readFile(join(this.photoDir, filename));
+      const ext = extname(filename).replace('.', '').toLowerCase();
+      const mime = ext === 'jpg' ? 'jpeg' : ext;
+      return { buffer, ext, dataUri: `data:image/${mime};base64,${buffer.toString('base64')}` };
+    } catch (err) {
+      this.logger.warn(`Could not read photo ${photoUrl}: ${(err as Error).message}`);
+      return undefined;
+    }
   }
 
   private toEntity(cvId: string, row: Export): ExportEntity {
@@ -62,9 +86,12 @@ export class ExportsService {
       where: { id: cvId },
       include: CV_WITH_CONTENT_INCLUDE,
     })) as ExportableCv;
+    const photo = await this.readPhoto(cv.photoUrl);
 
     const buffer =
-      dto.format === 'PDF' ? await this.pdfService.renderPdf(renderCvHtml(cv)) : await buildCvDocx(cv);
+      dto.format === 'PDF'
+        ? await this.pdfService.renderPdf(renderCvHtml(cv, photo?.dataUri))
+        : await buildCvDocx(cv, photo && { buffer: photo.buffer, ext: photo.ext });
     const extension = dto.format === 'PDF' ? 'pdf' : 'docx';
 
     const dir = join(this.exportDir, cvId);
@@ -113,6 +140,7 @@ export class ExportsService {
       title: cv.title,
       contactInfoJson: cv.contactInfoJson as Record<string, unknown> | null,
       styleOverridesJson: cv.styleOverridesJson as Record<string, unknown> | null,
+      photoUrl: cv.photoUrl,
       template: {
         id: cv.template.id,
         name: cv.template.name,

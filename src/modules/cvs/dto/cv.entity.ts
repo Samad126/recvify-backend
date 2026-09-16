@@ -72,6 +72,9 @@ export class CvDetailEntity extends CvListItemEntity {
   @ApiPropertyOptional({ description: 'The Upload this CV was built from, if any' })
   sourceUploadId: string | null;
 
+  @ApiPropertyOptional({ description: 'Servable URL for the optional profile photo, e.g. /photos/<file>' })
+  photoUrl: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

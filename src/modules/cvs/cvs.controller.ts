@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,9 +10,14 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiExtraModels,
   ApiNoContentResponse,
@@ -20,6 +26,7 @@ import {
   ApiOperation,
 } from '@nestjs/swagger';
 import { GetUser } from '../../common/decorators/get-user.decorator.js';
+import { ACCEPTED_PHOTO_MIME_TYPES, MAX_PHOTO_SIZE_BYTES } from './photo.constants.js';
 import { CvsService } from './cvs.service.js';
 import { CvSectionsService } from './cv-sections.service.js';
 import { CvEntriesService } from './cv-entries.service.js';
@@ -126,6 +133,42 @@ export class CvsController {
   @ApiNotFoundResponse({ description: 'CV not found' })
   remove(@GetUser('sub') userId: string, @Param('cvId') cvId: string) {
     return this.cvsService.remove(cvId, userId);
+  }
+
+  @Post(':cvId/photo')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_PHOTO_SIZE_BYTES } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+      required: ['file'],
+    },
+  })
+  @ApiOperation({
+    summary: 'Upload (or replace) this CV\'s profile photo',
+    description: 'Accepts a JPEG/PNG/WebP image (max 5MB). Replaces any existing photo.',
+  })
+  @ApiOkResponse({ description: 'Returns { id, photoUrl }' })
+  @ApiNotFoundResponse({ description: 'CV not found' })
+  uploadPhoto(
+    @GetUser('sub') userId: string,
+    @Param('cvId') cvId: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    if (!file) throw new BadRequestException('file is required');
+    if (!ACCEPTED_PHOTO_MIME_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException('Only JPEG, PNG, and WebP images are supported');
+    }
+    return this.cvsService.uploadPhoto(cvId, userId, file);
+  }
+
+  @Delete(':cvId/photo')
+  @ApiOperation({ summary: "Remove this CV's profile photo" })
+  @ApiOkResponse({ description: 'Returns { id, photoUrl: null }' })
+  @ApiNotFoundResponse({ description: 'CV not found' })
+  removePhoto(@GetUser('sub') userId: string, @Param('cvId') cvId: string) {
+    return this.cvsService.removePhoto(cvId, userId);
   }
 
   // ---------------------------------------------------------------------

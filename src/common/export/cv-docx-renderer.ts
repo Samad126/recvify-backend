@@ -1,7 +1,6 @@
-import { Document, HeadingLevel, Paragraph, TextRun } from 'docx';
-import { Packer } from 'docx';
+import { Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun, UnderlineType } from 'docx';
 import type { CvEntry, CvSection } from '../../generated/prisma/client.js';
-import { resolveStyle } from './style-cascade.js';
+import { type ResolvedStyle, resolveStyle } from './style-cascade.js';
 import {
   isSidebarSection,
   sectionLabel,
@@ -20,6 +19,20 @@ function str(value: unknown): string {
 
 function hex(color: string): string {
   return color.replace('#', '').toUpperCase();
+}
+
+/**
+ * Bold/italic run properties for one resolved field style. `defaultBold`/
+ * `defaultItalic` match the design's baseline for that field (e.g. job
+ * titles are bold by default) — an explicit override on the field still wins
+ * either way, it just changes what "unset" falls back to.
+ */
+function runWeight(style: ResolvedStyle, defaultBold = false, defaultItalic = false) {
+  return {
+    bold: style.bold === undefined ? defaultBold : style.bold,
+    italics: style.italic === undefined ? defaultItalic : style.italic,
+    underline: style.underline ? { type: UnderlineType.SINGLE } : undefined,
+  };
 }
 
 function renderEntryParagraphs(
@@ -42,7 +55,7 @@ function renderEntryParagraphs(
             children: [
               new TextRun({
                 text: str(fields.title),
-                bold: true,
+                ...runWeight(s, true),
                 color: s.explicitColor ? hex(s.explicitColor) : undefined,
                 size: 16 * s.fontScale * 2,
               }),
@@ -57,6 +70,7 @@ function renderEntryParagraphs(
           children: [
             new TextRun({
               text: str(fields.text),
+              ...runWeight(bodyStyle),
               color: bodyStyle.explicitColor ? hex(bodyStyle.explicitColor) : undefined,
               size: 14 * bodyStyle.fontScale * 2,
             }),
@@ -77,13 +91,13 @@ function renderEntryParagraphs(
           children: [
             new TextRun({
               text: str(fields.jobTitle),
-              bold: true,
+              ...runWeight(titleStyle, true),
               color: titleStyle.explicitColor ? hex(titleStyle.explicitColor) : undefined,
               size: 16 * titleStyle.fontScale * 2,
             }),
             new TextRun({
               text: `    ${dates}`,
-              italics: true,
+              ...runWeight(startStyle, false, true),
               color: startStyle.explicitColor ? hex(startStyle.explicitColor) : ON_SURFACE_VARIANT,
               size: 13 * 2,
             }),
@@ -91,7 +105,12 @@ function renderEntryParagraphs(
         }),
         new Paragraph({
           children: [
-            new TextRun({ text: str(fields.company), color: hex(companyStyle.color), size: 14 * companyStyle.fontScale * 2 }),
+            new TextRun({
+              text: str(fields.company),
+              ...runWeight(companyStyle),
+              color: hex(companyStyle.color),
+              size: 14 * companyStyle.fontScale * 2,
+            }),
           ],
           spacing: { after: 40 },
         }),
@@ -99,6 +118,7 @@ function renderEntryParagraphs(
           children: [
             new TextRun({
               text: str(fields.description),
+              ...runWeight(descStyle),
               color: descStyle.explicitColor ? hex(descStyle.explicitColor) : undefined,
               size: 14 * descStyle.fontScale * 2,
             }),
@@ -117,13 +137,13 @@ function renderEntryParagraphs(
           children: [
             new TextRun({
               text: str(fields.degree),
-              bold: true,
+              ...runWeight(degreeStyle, true),
               color: degreeStyle.explicitColor ? hex(degreeStyle.explicitColor) : undefined,
               size: 16 * degreeStyle.fontScale * 2,
             }),
             new TextRun({
               text: `    ${dates}`,
-              italics: true,
+              ...runWeight(startStyle, false, true),
               color: startStyle.explicitColor ? hex(startStyle.explicitColor) : ON_SURFACE_VARIANT,
               size: 13 * 2,
             }),
@@ -131,7 +151,12 @@ function renderEntryParagraphs(
         }),
         new Paragraph({
           children: [
-            new TextRun({ text: str(fields.school), color: hex(schoolStyle.color), size: 14 * schoolStyle.fontScale * 2 }),
+            new TextRun({
+              text: str(fields.school),
+              ...runWeight(schoolStyle),
+              color: hex(schoolStyle.color),
+              size: 14 * schoolStyle.fontScale * 2,
+            }),
           ],
           spacing: { after: 120 },
         }),
@@ -144,6 +169,7 @@ function renderEntryParagraphs(
           children: [
             new TextRun({
               text: `• ${str(fields.name)}${fields.level ? ` (${str(fields.level)})` : ''}`,
+              ...runWeight(s),
               color: s.explicitColor ? hex(s.explicitColor) : undefined,
               size: 14 * s.fontScale * 2,
             }),
@@ -158,6 +184,7 @@ function renderEntryParagraphs(
           children: [
             new TextRun({
               text: `${str(fields.name)}${fields.issuer ? ` — ${str(fields.issuer)}` : ''}${fields.date ? ` (${str(fields.date)})` : ''}`,
+              ...runWeight(s),
               color: s.explicitColor ? hex(s.explicitColor) : undefined,
               size: 14 * s.fontScale * 2,
             }),
@@ -176,17 +203,35 @@ function renderSectionParagraphs(
   layers: (StyleOverrides | null | undefined)[],
 ): Paragraph[] {
   const sectionLayers = [...layers, section.styleOverridesJson as StyleOverrides | null];
+  const headingStyle = resolveStyle(...sectionLayers);
   return [
     new Paragraph({
-      text: sectionLabel(section).toUpperCase(),
       heading: HeadingLevel.HEADING_1,
       spacing: { before: 200, after: 120 },
+      children: [
+        new TextRun({
+          text: sectionLabel(section).toUpperCase(),
+          ...runWeight(headingStyle),
+          color: hex(headingStyle.color),
+        }),
+      ],
     }),
     ...section.entries.flatMap((entry) => renderEntryParagraphs(section, entry, sectionLayers)),
   ];
 }
 
-export async function buildCvDocx(cv: ExportableCv): Promise<Buffer> {
+const DOCX_IMAGE_TYPES: Record<string, 'jpg' | 'png' | 'gif' | 'bmp'> = {
+  jpg: 'jpg',
+  jpeg: 'jpg',
+  png: 'png',
+  gif: 'gif',
+  bmp: 'bmp',
+};
+
+export async function buildCvDocx(
+  cv: ExportableCv,
+  photo?: { buffer: Buffer; ext: string },
+): Promise<Buffer> {
   const structure = (cv.template.structureJson ?? {}) as TemplateStructure;
   const cvStyle = (cv.styleOverridesJson ?? {}) as StyleOverrides;
   const contact = (cv.contactInfoJson ?? {}) as ContactInfo;
@@ -194,37 +239,73 @@ export async function buildCvDocx(cv: ExportableCv): Promise<Buffer> {
   const headerStyle = resolveStyle(templateLayer, cvStyle, cvStyle.fieldOverrides?.title);
   // Name/contact-line stay neutral unless explicitly given a color — see
   // the matching comment in cv-html-renderer.ts.
-  const nameColor = cvStyle.fieldOverrides?.fullName?.accentColor ?? cvStyle.accentColor;
-  const contactFieldColor = (field: string) => cvStyle.fieldOverrides?.[field]?.accentColor ?? cvStyle.accentColor;
+  const nameStyle = resolveStyle(cvStyle, cvStyle.fieldOverrides?.fullName);
+  const contactFieldStyle = (field: string) => resolveStyle(cvStyle, cvStyle.fieldOverrides?.[field]);
 
   const children: Paragraph[] = [];
+
+  // Word has no simple circular-crop for images via this library — unlike
+  // the PDF/live preview, the photo here is a plain square/rect. webp isn't
+  // one of docx's supported ImageRun types, so it's skipped rather than
+  // producing a broken image.
+  const docxImageType = photo && DOCX_IMAGE_TYPES[photo.ext];
+  if (photo && docxImageType) {
+    children.push(
+      new Paragraph({
+        children: [
+          new ImageRun({
+            data: photo.buffer,
+            type: docxImageType,
+            transformation: { width: 80, height: 80 },
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+    );
+  }
 
   if (contact.fullName) {
     children.push(
       new Paragraph({
         heading: HeadingLevel.TITLE,
-        children: [new TextRun({ text: contact.fullName, color: nameColor ? hex(nameColor) : undefined })],
+        children: [
+          new TextRun({
+            text: contact.fullName,
+            ...runWeight(nameStyle),
+            color: nameStyle.explicitColor ? hex(nameStyle.explicitColor) : undefined,
+          }),
+        ],
       }),
     );
   }
   if (contact.title) {
     children.push(
       new Paragraph({
-        children: [new TextRun({ text: contact.title, color: hex(headerStyle.color), bold: true })],
+        children: [
+          new TextRun({
+            text: contact.title,
+            color: hex(headerStyle.color),
+            ...runWeight(headerStyle, true),
+          }),
+        ],
       }),
     );
   }
   const contactParts = [
-    contact.email && { text: contact.email, color: contactFieldColor('email') },
-    contact.phone && { text: contact.phone, color: contactFieldColor('phone') },
-    contact.location && { text: contact.location, color: contactFieldColor('location') },
-  ].filter((p): p is { text: string; color: string | undefined } => !!p);
+    contact.email && { text: contact.email, style: contactFieldStyle('email') },
+    contact.phone && { text: contact.phone, style: contactFieldStyle('phone') },
+    contact.location && { text: contact.location, style: contactFieldStyle('location') },
+  ].filter((p): p is { text: string; style: ResolvedStyle } => !!p);
   if (contactParts.length > 0) {
     children.push(
       new Paragraph({
         children: contactParts.flatMap((part, i) => [
           ...(i > 0 ? [new TextRun({ text: ' | ' })] : []),
-          new TextRun({ text: part.text, color: part.color ? hex(part.color) : undefined }),
+          new TextRun({
+            text: part.text,
+            ...runWeight(part.style),
+            color: part.style.explicitColor ? hex(part.style.explicitColor) : undefined,
+          }),
         ]),
         spacing: { after: 200 },
       }),

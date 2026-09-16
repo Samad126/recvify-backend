@@ -18,6 +18,11 @@ export interface StyleOverrides {
   fontSize?: number;
   accentColor?: string;
   theme?: 'light' | 'dark';
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  /** Multiplier, e.g. 1.4 — not px. */
+  lineHeight?: number;
   /** CV-level only: per-header-field overrides (fullName/title/email/phone/location). */
   fieldOverrides?: Record<string, StyleOverrides>;
 }
