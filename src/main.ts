@@ -9,8 +9,12 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
+  // Reflects any request origin instead of allowlisting one, so any frontend
+  // (any port, any host) can call the API during testing. `credentials: true`
+  // requires this (browsers reject `origin: '*'` with cookies) — tighten back
+  // to FRONTEND_URL before deploying anywhere real.
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+    origin: true,
     credentials: true,
   });
 

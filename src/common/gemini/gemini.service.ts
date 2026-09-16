@@ -19,7 +19,7 @@ import {
   type JdMatchTarget,
 } from './jd-match-schema.js';
 
-const MODEL = 'gemini-3.6-flash';
+const MODEL = 'gemini-3.1-flash-lite';
 
 @Injectable()
 export class GeminiService {
