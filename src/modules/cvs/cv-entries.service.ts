@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { instanceToPlain } from 'class-transformer';
 import { DatabaseService } from '../../common/database/database.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { CvSectionsService } from './cv-sections.service.js';
@@ -75,7 +74,9 @@ export class CvEntriesService {
       } as Prisma.InputJsonValue;
     }
     if (dto.styleOverridesJson !== undefined) {
-      data.styleOverridesJson = instanceToPlain(dto.styleOverridesJson) as Prisma.InputJsonValue;
+      // A field-name-keyed map (see UpdateEntryDto), not a single StyleOverridesDto —
+      // stored as-is, the frontend sends the full merged map on every patch.
+      data.styleOverridesJson = dto.styleOverridesJson as Prisma.InputJsonValue;
     }
 
     return this.db.$transaction(async (tx) => {

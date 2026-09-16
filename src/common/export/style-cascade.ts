@@ -6,6 +6,8 @@ export const BASE_FONT_SIZE = 14;
 
 export interface ResolvedStyle {
   color: string;
+  /** Same as `color`, but `undefined` when no layer set an accentColor at all — for text that should stay neutral (e.g. a job title) unless explicitly colored, instead of always defaulting to the accent. */
+  explicitColor: string | undefined;
   fontFamily: string;
   fontSize: number;
   /** Relative to the 14px design baseline — multiply an element's base px size by this. */
@@ -20,15 +22,19 @@ export interface ResolvedStyle {
  */
 export function resolveStyle(...layers: (StyleOverrides | null | undefined)[]): ResolvedStyle {
   let color = DEFAULT_ACCENT_COLOR;
+  let explicitColor: string | undefined;
   let fontFamily = DEFAULT_FONT_FAMILY;
   let fontSize = BASE_FONT_SIZE;
 
   for (const layer of layers) {
     if (!layer) continue;
-    if (layer.accentColor) color = layer.accentColor;
+    if (layer.accentColor) {
+      color = layer.accentColor;
+      explicitColor = layer.accentColor;
+    }
     if (layer.fontFamily) fontFamily = layer.fontFamily;
     if (layer.fontSize) fontSize = layer.fontSize;
   }
 
-  return { color, fontFamily, fontSize, fontScale: fontSize / BASE_FONT_SIZE };
+  return { color, explicitColor, fontFamily, fontSize, fontScale: fontSize / BASE_FONT_SIZE };
 }

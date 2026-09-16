@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export class StyleOverridesDto {
   @ApiPropertyOptional({ example: 'Inter' })
@@ -25,4 +25,14 @@ export class StyleOverridesDto {
   @IsOptional()
   @IsIn(['light', 'dark'])
   theme?: 'light' | 'dark';
+
+  @ApiPropertyOptional({
+    type: Object,
+    description:
+      "CV-level only: per-field style for the header's individual text nodes (fullName/title/email/phone/location), keyed by field name. Not deeply validated — cosmetic data.",
+    example: { title: { accentColor: '#1D4ED8' } },
+  })
+  @IsOptional()
+  @IsObject()
+  fieldOverrides?: Record<string, StyleOverridesDto>;
 }

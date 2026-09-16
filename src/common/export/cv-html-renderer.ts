@@ -4,6 +4,7 @@ import {
   isSidebarSection,
   sectionLabel,
   type ContactInfo,
+  type EntryFieldStyles,
   type ExportableCv,
   type StyleOverrides,
   type TemplateStructure,
@@ -51,56 +52,81 @@ function styleAttr(rules: Record<string, string | number | undefined>): string {
 
 type EntryWithStyle = CvEntry & { fieldsJson: unknown };
 
+/** Resolves one field's own style, independent of every other field in the same entry. */
+function fieldStyleAttr(
+  layers: (StyleOverrides | null | undefined)[],
+  fieldStyles: EntryFieldStyles | null | undefined,
+  fieldKey: string,
+  basePx: number,
+  useAccent: boolean,
+): string {
+  const style = resolveStyle(...layers, fieldStyles?.[fieldKey]);
+  return styleAttr({
+    'font-family': `'${style.fontFamily}', Arial, sans-serif`,
+    'font-size': `${basePx * style.fontScale}px`,
+    // Accent fields (company/school) default to the resolved accent; every
+    // other field stays neutral unless *this* field was explicitly colored.
+    color: useAccent ? style.color : style.explicitColor,
+  });
+}
+
 function renderEntry(
   section: CvSection,
   entry: EntryWithStyle,
   layers: (StyleOverrides | null | undefined)[],
 ): string {
   const fields = entry.fieldsJson as Record<string, unknown>;
-  const style = resolveStyle(...layers, entry.styleOverridesJson as StyleOverrides | null);
-  const entryFont = styleAttr({ 'font-family': `'${style.fontFamily}', Arial, sans-serif` });
-  const accent = styleAttr({ color: style.color, 'font-size': `${14 * style.fontScale}px` });
-  const body = styleAttr({ 'font-size': `${14 * style.fontScale}px` });
-  const title = styleAttr({ 'font-size': `${16 * style.fontScale}px` });
+  const fieldStyles = entry.styleOverridesJson as EntryFieldStyles | null;
+  const fs = (key: string, basePx: number, useAccent = false) =>
+    fieldStyleAttr(layers, fieldStyles, key, basePx, useAccent);
 
   switch (section.sectionType) {
     case 'SUMMARY':
     case 'CUSTOM': {
       const heading = fields.title
-        ? `<h3 class="entry-title"${title}>${escapeHtml(fields.title)}</h3>`
+        ? `<h3 class="entry-title"${fs('title', 16)}>${escapeHtml(fields.title)}</h3>`
         : '';
-      return `<div class="entry"${entryFont}>${heading}<p class="text"${body}>${escapeHtml(fields.text)}</p></div>`;
+      return `<div class="entry">${heading}<p class="text"${fs('text', 14)}>${escapeHtml(fields.text)}</p></div>`;
     }
     case 'EXPERIENCE': {
-      const dates = `${escapeHtml(fields.startDate)} – ${fields.isCurrent ? 'Present' : escapeHtml(fields.endDate)}`;
-      return `<div class="entry"${entryFont}>
+      return `<div class="entry">
         <div class="entry-header">
-          <span class="entry-title"${title}>${escapeHtml(fields.jobTitle)}</span>
-          <span class="entry-dates">${dates}</span>
+          <span class="entry-title"${fs('jobTitle', 16)}>${escapeHtml(fields.jobTitle)}</span>
+          <span class="entry-dates">
+            <span${fs('startDate', 13)}>${escapeHtml(fields.startDate)}</span> –
+            ${fields.isCurrent ? 'Present' : `<span${fs('endDate', 13)}>${escapeHtml(fields.endDate)}</span>`}
+          </span>
         </div>
-        <p class="entry-subtitle"${accent}>${escapeHtml(fields.company)}</p>
-        <p class="text"${body}>${escapeHtml(fields.description)}</p>
+        <p class="entry-subtitle"${fs('company', 14, true)}>${escapeHtml(fields.company)}</p>
+        <p class="text"${fs('description', 14)}>${escapeHtml(fields.description)}</p>
       </div>`;
     }
     case 'EDUCATION': {
-      const dates = `${escapeHtml(fields.startDate)} – ${escapeHtml(fields.endDate)}`;
-      return `<div class="entry"${entryFont}>
+      return `<div class="entry">
         <div class="entry-header">
-          <span class="entry-title"${title}>${escapeHtml(fields.degree)}</span>
-          <span class="entry-dates">${dates}</span>
+          <span class="entry-title"${fs('degree', 16)}>${escapeHtml(fields.degree)}</span>
+          <span class="entry-dates">
+            <span${fs('startDate', 13)}>${escapeHtml(fields.startDate)}</span> –
+            <span${fs('endDate', 13)}>${escapeHtml(fields.endDate)}</span>
+          </span>
         </div>
-        <p class="entry-subtitle"${accent}>${escapeHtml(fields.school)}</p>
+        <p class="entry-subtitle"${fs('school', 14, true)}>${escapeHtml(fields.school)}</p>
       </div>`;
     }
     case 'SKILLS':
-      return `<span class="chip"${entryFont}${body}>${escapeHtml(fields.name)}${fields.level ? ` · ${escapeHtml(fields.level)}` : ''}</span>`;
-    case 'CERTIFICATIONS':
-      return `<div class="entry"${entryFont}>
+      return `<span class="chip"${fs('name', 12)}>${escapeHtml(fields.name)}${fields.level ? ` · ${escapeHtml(fields.level)}` : ''}</span>`;
+    case 'CERTIFICATIONS': {
+      const parts = [
+        fields.issuer && `<span${fs('issuer', 13)}>${escapeHtml(fields.issuer)}</span>`,
+        fields.date && `<span${fs('date', 13)}>${escapeHtml(fields.date)}</span>`,
+      ].filter(Boolean);
+      return `<div class="entry">
         <div class="entry-header">
-          <span class="entry-title" style="font-size:14px">${escapeHtml(fields.name)}</span>
-          <span class="entry-dates">${[fields.issuer, fields.date].filter(Boolean).map(escapeHtml).join(' · ')}</span>
+          <span class="entry-title"${fs('name', 14)}>${escapeHtml(fields.name)}</span>
+          <span class="entry-dates">${parts.join(' · ')}</span>
         </div>
       </div>`;
+    }
     default:
       return '';
   }
@@ -134,7 +160,7 @@ export function renderCvHtml(cv: ExportableCv): string {
     accentColor: structure.accentColor,
     fontFamily: structure.font,
   };
-  const headerStyle = resolveStyle(templateLayer, cvStyle);
+  const headerStyle = resolveStyle(templateLayer, cvStyle, cvStyle.fieldOverrides?.title);
   const isDark = cvStyle.theme === 'dark';
   const t = isDark ? TOKENS.dark : TOKENS.light;
   const isTwoColumn = structure.layout === 'two-column';
@@ -146,7 +172,22 @@ export function renderCvHtml(cv: ExportableCv): string {
     : [];
   const bodyLayers = [templateLayer, cvStyle];
 
-  const contactLine = [contact.email, contact.phone, contact.location].filter(Boolean).join(' &nbsp;|&nbsp; ');
+  // Name/contact-line stay neutral by default (no template-driven tint) —
+  // only an *explicit* accent (CV-wide or field-specific) colors them, unlike
+  // the title which inherits the template's accent like every other run.
+  const nameColor = cvStyle.fieldOverrides?.fullName?.accentColor ?? cvStyle.accentColor;
+  const contactFieldColor = (field: string) => cvStyle.fieldOverrides?.[field]?.accentColor ?? cvStyle.accentColor;
+
+  const contactLine = [
+    contact.email &&
+      `<span${styleAttr({ color: contactFieldColor('email') })}>${escapeHtml(contact.email)}</span>`,
+    contact.phone &&
+      `<span${styleAttr({ color: contactFieldColor('phone') })}>${escapeHtml(contact.phone)}</span>`,
+    contact.location &&
+      `<span${styleAttr({ color: contactFieldColor('location') })}>${escapeHtml(contact.location)}</span>`,
+  ]
+    .filter(Boolean)
+    .join(' &nbsp;|&nbsp; ');
 
   return `<!DOCTYPE html>
 <html>
@@ -198,7 +239,7 @@ export function renderCvHtml(cv: ExportableCv): string {
 </head>
 <body>
   <div class="header">
-    <h1>${escapeHtml(contact.fullName)}</h1>
+    <h1${styleAttr({ color: nameColor })}>${escapeHtml(contact.fullName)}</h1>
     ${contact.title ? `<p class="header-title">${escapeHtml(contact.title)}</p>` : ''}
     ${contactLine ? `<p class="contact-line">${contactLine}</p>` : ''}
   </div>

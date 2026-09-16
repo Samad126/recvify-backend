@@ -6,6 +6,7 @@ import {
   isSidebarSection,
   sectionLabel,
   type ContactInfo,
+  type EntryFieldStyles,
   type ExportableCv,
   type StyleOverrides,
   type TemplateStructure,
@@ -27,86 +28,144 @@ function renderEntryParagraphs(
   layers: (StyleOverrides | null | undefined)[],
 ): Paragraph[] {
   const fields = entry.fieldsJson as Record<string, unknown>;
-  const style = resolveStyle(...layers, entry.styleOverridesJson as StyleOverrides | null);
-  const accentColor = hex(style.color);
+  const fieldStyles = entry.styleOverridesJson as EntryFieldStyles | null;
+  const fieldStyle = (key: string) => resolveStyle(...layers, fieldStyles?.[key]);
 
   switch (section.sectionType) {
     case 'SUMMARY':
     case 'CUSTOM': {
       const paragraphs: Paragraph[] = [];
       if (fields.title) {
+        const s = fieldStyle('title');
         paragraphs.push(
           new Paragraph({
-            children: [new TextRun({ text: str(fields.title), bold: true, size: 16 * style.fontScale * 2 })],
+            children: [
+              new TextRun({
+                text: str(fields.title),
+                bold: true,
+                color: s.explicitColor ? hex(s.explicitColor) : undefined,
+                size: 16 * s.fontScale * 2,
+              }),
+            ],
             spacing: { after: 60 },
           }),
         );
       }
+      const bodyStyle = fieldStyle('text');
       paragraphs.push(
         new Paragraph({
-          children: [new TextRun({ text: str(fields.text), size: 14 * style.fontScale * 2 })],
+          children: [
+            new TextRun({
+              text: str(fields.text),
+              color: bodyStyle.explicitColor ? hex(bodyStyle.explicitColor) : undefined,
+              size: 14 * bodyStyle.fontScale * 2,
+            }),
+          ],
           spacing: { after: 120 },
         }),
       );
       return paragraphs;
     }
     case 'EXPERIENCE': {
+      const titleStyle = fieldStyle('jobTitle');
+      const startStyle = fieldStyle('startDate');
+      const companyStyle = fieldStyle('company');
+      const descStyle = fieldStyle('description');
       const dates = `${str(fields.startDate)} – ${fields.isCurrent ? 'Present' : str(fields.endDate)}`;
       return [
         new Paragraph({
           children: [
-            new TextRun({ text: str(fields.jobTitle), bold: true, size: 16 * style.fontScale * 2 }),
-            new TextRun({ text: `    ${dates}`, italics: true, color: ON_SURFACE_VARIANT, size: 13 * 2 }),
+            new TextRun({
+              text: str(fields.jobTitle),
+              bold: true,
+              color: titleStyle.explicitColor ? hex(titleStyle.explicitColor) : undefined,
+              size: 16 * titleStyle.fontScale * 2,
+            }),
+            new TextRun({
+              text: `    ${dates}`,
+              italics: true,
+              color: startStyle.explicitColor ? hex(startStyle.explicitColor) : ON_SURFACE_VARIANT,
+              size: 13 * 2,
+            }),
           ],
         }),
         new Paragraph({
-          children: [new TextRun({ text: str(fields.company), color: accentColor, size: 14 * style.fontScale * 2 })],
+          children: [
+            new TextRun({ text: str(fields.company), color: hex(companyStyle.color), size: 14 * companyStyle.fontScale * 2 }),
+          ],
           spacing: { after: 40 },
         }),
         new Paragraph({
-          children: [new TextRun({ text: str(fields.description), size: 14 * style.fontScale * 2 })],
+          children: [
+            new TextRun({
+              text: str(fields.description),
+              color: descStyle.explicitColor ? hex(descStyle.explicitColor) : undefined,
+              size: 14 * descStyle.fontScale * 2,
+            }),
+          ],
           spacing: { after: 120 },
         }),
       ];
     }
     case 'EDUCATION': {
+      const degreeStyle = fieldStyle('degree');
+      const startStyle = fieldStyle('startDate');
+      const schoolStyle = fieldStyle('school');
       const dates = `${str(fields.startDate)} – ${str(fields.endDate)}`;
       return [
         new Paragraph({
           children: [
-            new TextRun({ text: str(fields.degree), bold: true, size: 16 * style.fontScale * 2 }),
-            new TextRun({ text: `    ${dates}`, italics: true, color: ON_SURFACE_VARIANT, size: 13 * 2 }),
+            new TextRun({
+              text: str(fields.degree),
+              bold: true,
+              color: degreeStyle.explicitColor ? hex(degreeStyle.explicitColor) : undefined,
+              size: 16 * degreeStyle.fontScale * 2,
+            }),
+            new TextRun({
+              text: `    ${dates}`,
+              italics: true,
+              color: startStyle.explicitColor ? hex(startStyle.explicitColor) : ON_SURFACE_VARIANT,
+              size: 13 * 2,
+            }),
           ],
         }),
         new Paragraph({
-          children: [new TextRun({ text: str(fields.school), color: accentColor, size: 14 * style.fontScale * 2 })],
+          children: [
+            new TextRun({ text: str(fields.school), color: hex(schoolStyle.color), size: 14 * schoolStyle.fontScale * 2 }),
+          ],
           spacing: { after: 120 },
         }),
       ];
     }
-    case 'SKILLS':
+    case 'SKILLS': {
+      const s = fieldStyle('name');
       return [
         new Paragraph({
           children: [
             new TextRun({
               text: `• ${str(fields.name)}${fields.level ? ` (${str(fields.level)})` : ''}`,
-              size: 14 * style.fontScale * 2,
+              color: s.explicitColor ? hex(s.explicitColor) : undefined,
+              size: 14 * s.fontScale * 2,
             }),
           ],
         }),
       ];
-    case 'CERTIFICATIONS':
+    }
+    case 'CERTIFICATIONS': {
+      const s = fieldStyle('name');
       return [
         new Paragraph({
           children: [
             new TextRun({
               text: `${str(fields.name)}${fields.issuer ? ` — ${str(fields.issuer)}` : ''}${fields.date ? ` (${str(fields.date)})` : ''}`,
-              size: 14 * style.fontScale * 2,
+              color: s.explicitColor ? hex(s.explicitColor) : undefined,
+              size: 14 * s.fontScale * 2,
             }),
           ],
           spacing: { after: 80 },
         }),
       ];
+    }
     default:
       return [];
   }
@@ -132,12 +191,21 @@ export async function buildCvDocx(cv: ExportableCv): Promise<Buffer> {
   const cvStyle = (cv.styleOverridesJson ?? {}) as StyleOverrides;
   const contact = (cv.contactInfoJson ?? {}) as ContactInfo;
   const templateLayer: StyleOverrides = { accentColor: structure.accentColor, fontFamily: structure.font };
-  const headerStyle = resolveStyle(templateLayer, cvStyle);
+  const headerStyle = resolveStyle(templateLayer, cvStyle, cvStyle.fieldOverrides?.title);
+  // Name/contact-line stay neutral unless explicitly given a color — see
+  // the matching comment in cv-html-renderer.ts.
+  const nameColor = cvStyle.fieldOverrides?.fullName?.accentColor ?? cvStyle.accentColor;
+  const contactFieldColor = (field: string) => cvStyle.fieldOverrides?.[field]?.accentColor ?? cvStyle.accentColor;
 
   const children: Paragraph[] = [];
 
   if (contact.fullName) {
-    children.push(new Paragraph({ text: contact.fullName, heading: HeadingLevel.TITLE }));
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.TITLE,
+        children: [new TextRun({ text: contact.fullName, color: nameColor ? hex(nameColor) : undefined })],
+      }),
+    );
   }
   if (contact.title) {
     children.push(
@@ -146,9 +214,21 @@ export async function buildCvDocx(cv: ExportableCv): Promise<Buffer> {
       }),
     );
   }
-  const contactLine = [contact.email, contact.phone, contact.location].filter(Boolean).join(' | ');
-  if (contactLine) {
-    children.push(new Paragraph({ text: contactLine, spacing: { after: 200 } }));
+  const contactParts = [
+    contact.email && { text: contact.email, color: contactFieldColor('email') },
+    contact.phone && { text: contact.phone, color: contactFieldColor('phone') },
+    contact.location && { text: contact.location, color: contactFieldColor('location') },
+  ].filter((p): p is { text: string; color: string | undefined } => !!p);
+  if (contactParts.length > 0) {
+    children.push(
+      new Paragraph({
+        children: contactParts.flatMap((part, i) => [
+          ...(i > 0 ? [new TextRun({ text: ' | ' })] : []),
+          new TextRun({ text: part.text, color: part.color ? hex(part.color) : undefined }),
+        ]),
+        spacing: { after: 200 },
+      }),
+    );
   }
 
   // Sorted the same way as the editor preview and PDF export — the CV's own

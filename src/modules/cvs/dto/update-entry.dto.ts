@@ -1,8 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsObject, IsOptional, ValidateNested } from 'class-validator';
+import { IsObject, IsOptional } from 'class-validator';
 import { SECTION_FIELDS_SCHEMA_REFS } from './section-fields.dto.js';
-import { StyleOverridesDto } from './style-overrides.dto.js';
+import type { StyleOverridesDto } from './style-overrides.dto.js';
 
 export class UpdateEntryDto {
   @ApiPropertyOptional({
@@ -15,12 +14,12 @@ export class UpdateEntryDto {
   fieldsJson?: Record<string, unknown>;
 
   @ApiPropertyOptional({
-    type: StyleOverridesDto,
+    type: Object,
     description:
-      'Style override for this entry only — cascades over the section/CV-level default, e.g. to color or resize just one job title.',
+      "Per-field style overrides for this entry, keyed by field name (e.g. \"jobTitle\", \"company\", \"description\") — cascades over the section/CV-level default so each piece of text in the entry can be colored/sized independently. Not deeply validated — cosmetic data.",
+    example: { jobTitle: { accentColor: '#1D4ED8' }, company: { fontFamily: 'Georgia' } },
   })
   @IsOptional()
-  @ValidateNested()
-  @Type(() => StyleOverridesDto)
-  styleOverridesJson?: StyleOverridesDto;
+  @IsObject()
+  styleOverridesJson?: Record<string, StyleOverridesDto>;
 }

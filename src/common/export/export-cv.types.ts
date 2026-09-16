@@ -18,7 +18,12 @@ export interface StyleOverrides {
   fontSize?: number;
   accentColor?: string;
   theme?: 'light' | 'dark';
+  /** CV-level only: per-header-field overrides (fullName/title/email/phone/location). */
+  fieldOverrides?: Record<string, StyleOverrides>;
 }
+
+/** An entry's styleOverridesJson is a map of field name -> its own style, not one flat style for the whole entry. */
+export type EntryFieldStyles = Record<string, StyleOverrides>;
 
 export interface TemplateStructure {
   layout?: 'single-column' | 'two-column';
