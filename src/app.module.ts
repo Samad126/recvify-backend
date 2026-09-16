@@ -20,6 +20,7 @@ import { TemplatesModule } from './modules/templates/templates.module.js';
 import { CvsModule } from './modules/cvs/cvs.module.js';
 import { GeminiModule } from './common/gemini/gemini.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
+import { AiSuggestionsModule } from './modules/ai-suggestions/ai-suggestions.module.js';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { UploadsModule } from './modules/uploads/uploads.module.js';
     TemplatesModule,
     CvsModule,
     UploadsModule,
+    AiSuggestionsModule,
   ],
   controllers: [AppController],
   providers: [

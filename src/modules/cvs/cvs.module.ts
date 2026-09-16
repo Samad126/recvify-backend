@@ -7,5 +7,6 @@ import { CvEntriesService } from './cv-entries.service.js';
 @Module({
   controllers: [CvsController],
   providers: [CvsService, CvSectionsService, CvEntriesService],
+  exports: [CvsService],
 })
 export class CvsModule {}

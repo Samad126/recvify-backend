@@ -146,6 +146,8 @@ model CvEntry {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  aiSuggestions AiSuggestion[]
+
   @@index([sectionId])
   @@map("cv_entries")
 }
@@ -166,7 +168,11 @@ model AiSuggestion {
   cv        Cv         @relation(fields: [cvId], references: [id], onDelete: Cascade)
   sectionId String?
   section   CvSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  entryId   String?
+  entry     CvEntry?   @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  fieldKey  String? // which key within entry.fieldsJson this suggestion targets, e.g. "description"
 
+  label         String? // short display reason, e.g. "Stronger action verbs"
   originalText  String
   suggestedText String
   status        SuggestionStatus @default(PENDING)
@@ -175,6 +181,7 @@ model AiSuggestion {
   createdAt DateTime @default(now())
 
   @@index([cvId])
+  @@index([entryId])
   @@map("ai_suggestions")
 }
 

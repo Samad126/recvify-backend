@@ -6,6 +6,12 @@ import {
   RESUME_EXTRACTION_SCHEMA,
   type ParsedResumeData,
 } from './resume-schema.js';
+import {
+  buildSuggestionsPrompt,
+  SUGGESTIONS_SCHEMA,
+  type SuggestionInput,
+  type SuggestionResult,
+} from './suggestion-schema.js';
 
 const MODEL = 'gemini-3.6-flash';
 
@@ -49,6 +55,28 @@ export class GeminiService {
     } catch (err) {
       this.logger.error(`Resume parsing failed: ${(err as Error).message}`);
       throw new InternalServerErrorException('Failed to parse resume');
+    }
+  }
+
+  /** Generates one rewrite suggestion per input text block, matched back by `index`. */
+  async generateSuggestions(items: SuggestionInput[]): Promise<SuggestionResult[]> {
+    try {
+      const response = await this.client.models.generateContent({
+        model: MODEL,
+        contents: [{ role: 'user', parts: [{ text: buildSuggestionsPrompt(items) }] }],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: SUGGESTIONS_SCHEMA,
+        },
+      });
+
+      const raw = response.text;
+      if (!raw) throw new Error('Gemini returned an empty response');
+
+      return JSON.parse(raw) as SuggestionResult[];
+    } catch (err) {
+      this.logger.error(`Suggestion generation failed: ${(err as Error).message}`);
+      throw new InternalServerErrorException('Failed to generate suggestions');
     }
   }
 }
