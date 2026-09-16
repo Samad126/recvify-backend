@@ -83,11 +83,16 @@ model Cv {
   status             CvStatus @default(DRAFT)
   isVariant          Boolean  @default(false)
   styleOverridesJson Json? // per-CV font family/size, accent color, light/dark mode
+  contactInfoJson    Json? // { fullName, title, email, phone, location } — per-CV, may differ from the account's own name/email
 
   // Self-relation: a tailored variant points back to its base CV
   parentCvId String?
   parentCv   Cv?     @relation("CvVariants", fields: [parentCvId], references: [id], onDelete: SetNull)
   variants   Cv[]    @relation("CvVariants")
+
+  // Traces back to the Upload this CV was built from, if any (upload → AI parse → review → save flow)
+  sourceUploadId String?
+  sourceUpload   Upload? @relation(fields: [sourceUploadId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -99,6 +104,7 @@ model Cv {
 
   @@index([userId])
   @@index([parentCvId])
+  @@index([sourceUploadId])
   @@map("cvs")
 }
 
@@ -236,6 +242,8 @@ model Upload {
   parsedStatus ParseStatus @default(PENDING)
   parsedData   Json?
   createdAt    DateTime    @default(now())
+
+  cvs Cv[]
 
   @@index([userId])
   @@map("uploads")

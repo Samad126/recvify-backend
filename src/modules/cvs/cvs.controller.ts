@@ -24,6 +24,7 @@ import { CvsService } from './cvs.service.js';
 import { CvSectionsService } from './cv-sections.service.js';
 import { CvEntriesService } from './cv-entries.service.js';
 import { CreateCvDto } from './dto/create-cv.dto.js';
+import { CreateCvFromUploadDto } from './dto/create-cv-from-upload.dto.js';
 import { UpdateCvDto } from './dto/update-cv.dto.js';
 import { ListCvsDto } from './dto/list-cvs.dto.js';
 import { CreateSectionDto } from './dto/create-section.dto.js';
@@ -74,6 +75,18 @@ export class CvsController {
   @ApiNotFoundResponse({ description: 'Template not found' })
   create(@GetUser('sub') userId: string, @Body() dto: CreateCvDto) {
     return this.cvsService.create(userId, dto);
+  }
+
+  @Post('from-upload')
+  @ApiOperation({
+    summary: 'Create a CV from a reviewed upload (parsed-data-review "Save & Continue")',
+    description:
+      'Atomically creates the CV plus its SUMMARY/EXPERIENCE/EDUCATION/SKILLS sections and entries from the (possibly user-edited) reviewed data.',
+  })
+  @ApiCreatedResponse({ type: CvDetailEntity })
+  @ApiNotFoundResponse({ description: 'Upload or template not found' })
+  createFromUpload(@GetUser('sub') userId: string, @Body() dto: CreateCvFromUploadDto) {
+    return this.cvsService.createFromUpload(userId, dto);
   }
 
   @Get()

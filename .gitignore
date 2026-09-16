@@ -6,6 +6,9 @@
 # Prisma generated client
 /src/generated
 
+# Locally-stored uploads (resumes, PII — never commit)
+/uploads
+
 # Logs
 logs
 *.log

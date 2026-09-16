@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, IsString, IsUUID, MaxLength, ValidateNested } from 'class-validator';
 import { StyleOverridesDto } from './style-overrides.dto.js';
+import { ContactInfoDto } from './contact-info.dto.js';
 
 export class UpdateCvDto {
   @ApiPropertyOptional({ maxLength: 150 })
@@ -20,4 +21,10 @@ export class UpdateCvDto {
   @ValidateNested()
   @Type(() => StyleOverridesDto)
   styleOverridesJson?: StyleOverridesDto;
+
+  @ApiPropertyOptional({ type: ContactInfoDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ContactInfoDto)
+  contactInfoJson?: ContactInfoDto;
 }

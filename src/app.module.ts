@@ -18,6 +18,8 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { TemplatesModule } from './modules/templates/templates.module.js';
 import { CvsModule } from './modules/cvs/cvs.module.js';
+import { GeminiModule } from './common/gemini/gemini.module.js';
+import { UploadsModule } from './modules/uploads/uploads.module.js';
 
 @Module({
   imports: [
@@ -36,10 +38,12 @@ import { CvsModule } from './modules/cvs/cvs.module.js';
     DatabaseModule,
     RedisModule,
     MailModule,
+    GeminiModule,
     AuthModule,
     UsersModule,
     TemplatesModule,
     CvsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

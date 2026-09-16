@@ -53,6 +53,12 @@ export class CvDetailEntity extends CvListItemEntity {
   @ApiPropertyOptional({ type: Object })
   styleOverridesJson: Record<string, unknown> | null;
 
+  @ApiPropertyOptional({ type: Object, description: 'fullName/title/email/phone/location' })
+  contactInfoJson: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ description: 'The Upload this CV was built from, if any' })
+  sourceUploadId: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

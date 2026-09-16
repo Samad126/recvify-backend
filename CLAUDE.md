@@ -25,8 +25,9 @@ recvify-infra/
         │   ├── guards/       # JwtAccessGuard (global), JwtRefreshGuard, LocalAuthGuard
         │   ├── decorators/   # @Public(), @GetUser()
         │   ├── filters/      # HttpExceptionFilter, PrismaClientExceptionFilter (global)
-        │   └── interceptors/ # TransformInterceptor (global) — wraps success responses
-        └── modules/          # one folder per feature: auth, users, templates, cvs, ...
+        │   ├── interceptors/ # TransformInterceptor (global) — wraps success responses
+        │   └── gemini/       # GeminiService (Global module) — shared AI client wrapper
+        └── modules/          # one folder per feature: auth, users, templates, cvs, uploads, ...
 ```
 
 Each feature module follows the Nest convention: `<name>.module.ts`, `<name>.controller.ts`, `<name>.service.ts`, `dto/*.ts`. Cross-module reuse only through `common/`.
@@ -61,4 +62,6 @@ Swagger UI: `http://localhost:3000/api/docs` (raw OpenAPI JSON at `/api/docs-jso
 
 ## Scope status
 
-Foundation (auth wiring, validation, Swagger, Redis) + core CV flow (templates, CV/section/entry CRUD, dashboard/editor persistence) is the current build target. Upload + AI parsing, AI "Improve with AI" suggestions, JD tailoring/match-scoring, and PDF/DOCX/link export are designed at the schema level but intentionally not implemented yet — each needs its own design pass (Gemini integration, async job handling, PDF rendering approach) before being built.
+Built and verified end-to-end: auth foundation (validation, Swagger, Redis), core CV flow (templates, CV/section/entry CRUD, dashboard/editor persistence), and upload + AI parsing (`POST /uploads` — PDF sent natively to Gemini as multimodal input, DOCX text-extracted via `mammoth` first; `POST /cvs/from-upload` atomically creates the CV from the reviewed result). Parsing is synchronous (no job queue yet) — acceptable for now, revisit if latency becomes a problem.
+
+Not built yet: AI "Improve with AI" suggestions and JD tailoring/match-scoring (both will reuse `GeminiService`, but need the `AiSuggestion` field-level-targeting schema gap resolved first — see the plan history for the mockup-review notes on this), and PDF/DOCX/link export (no PDF rendering approach chosen yet).
